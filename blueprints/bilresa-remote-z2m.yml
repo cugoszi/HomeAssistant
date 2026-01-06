@@ -4,7 +4,7 @@ blueprint:
     Control light groups with an IKEA BILRESA remote via Zigbee2MQTT.
     - Single click toggles primary lights
     - Double click toggles secondary lights
-    - Rotary wheel dims or brightens selected dimmer lights
+    - Rotary wheel dims or brightens selected dimmer lights (never below 1%)
   domain: automation
   input:
     remote_topic:
@@ -59,9 +59,6 @@ trigger:
     topic: !input remote_topic
 
 action:
-  # ─────────────────────────────
-  # Make blueprint inputs usable in templates
-  # ─────────────────────────────
   - variables:
       action: "{{ trigger.payload_json.action | default('') }}"
       new_level: "{{ trigger.payload_json.action_level | default(None) }}"
@@ -95,6 +92,7 @@ action:
               last: "{{ states(wheel_memory_entity) | int(0) }}"
               dim_step_value: !input dim_step
 
+              # Compute step
               step: >
                 {% set d = dim_step_value | int %}
                 {% if new_level is none %}
@@ -109,6 +107,16 @@ action:
                   0
                 {% endif %}
 
+              # Calculate resulting brightness but enforce minimum 1%
+              target_brightness: >
+                {% set current_brightness = states('light.' + (dimmer_lights.entity_ids | join(','))) | int(100) %}
+                {% set tentative = current_brightness + step %}
+                {% if tentative < 1 %}
+                  1
+                {% else %}
+                  tentative
+                {% endif %}
+
           - choose:
               - conditions:
                   - condition: template
@@ -117,7 +125,7 @@ action:
                   - service: light.turn_on
                     target: !input dimmer_lights
                     data:
-                      brightness_step_pct: "{{ step | int(0) }}"
+                      brightness_pct: "{{ target_brightness }}"
 
           - choose:
               - conditions:
