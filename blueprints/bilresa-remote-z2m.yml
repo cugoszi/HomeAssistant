@@ -96,13 +96,13 @@ action:
               # Determine step according to new_level
               step: >
                 {% if new_level is none %}
-                  {{ dim_step }}           # null → brighten
+                  {{ dim_step }}
                 {% elif new_level == 1 %}
-                  {{ -dim_step }}          # min → dim
+                  {{ -dim_step }}
                 {% elif new_level > last %}
-                  {{ dim_step }}           # higher than last → brighten
+                  {{ dim_step }}
                 {% elif new_level < last %}
-                  {{ -dim_step }}          # lower than last → dim
+                  {{ -dim_step }}
                 {% else %}
                   0
                 {% endif %}
