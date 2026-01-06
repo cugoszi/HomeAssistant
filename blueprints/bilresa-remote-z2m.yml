@@ -91,9 +91,12 @@ action:
             value_template: "{{ action == 'brightness_move_to_level' }}"
         sequence:
           - variables:
-              last: "{{ states(!input wheel_memory) | int(0) }}"
+              wheel_memory_entity: !input wheel_memory
+              last: "{{ states(wheel_memory_entity) | int(0) }}"
+              dim_step_value: !input dim_step
+
               step: >
-                {% set d = !input dim_step | int %}
+                {% set d = dim_step_value | int %}
                 {% if new_level is none %}
                   {{ d }}
                 {% elif new_level == 1 %}
