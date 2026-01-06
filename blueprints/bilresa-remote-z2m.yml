@@ -89,17 +89,18 @@ action:
       - conditions:
           - condition: template
             value_template: >
-              {{ action == 'brightness_move_to_level'
-                 and new_level is not none }}
+              {{ action == 'brightness_move_to_level' and new_level is not none }}
         sequence:
           - variables:
               step: >
-                {% if last_level == 0 %}
+                {% set l = last_level | int(0) %}
+                {% set n = new_level | int(0) %}
+                {% if l == 0 %}
                   0
-                {% elif new_level > last_level %}
-                  {{ dim_step }}
-                {% elif new_level < last_level %}
-                  {{ -dim_step }}
+                {% elif n > l %}
+                  {{ dim_step | int }}
+                {% elif n < l %}
+                  {{ -dim_step | int }}
                 {% else %}
                   0
                 {% endif %}
@@ -118,6 +119,6 @@ action:
             target:
               entity_id: !input wheel_memory
             data:
-              value: "{{ new_level }}"
+              value: "{{ new_level | int }}"
 
 mode: restart
