@@ -1,0 +1,95 @@
+blueprint:
+  name: Zigbee2MQTT – IKEA BILRESA Remote
+  description: >
+    Control lights using IKEA BILRESA via Zigbee2MQTT.
+    - Single click toggles primary lights
+    - Double click toggles secondary lights
+    - Rotary wheel dims or brightens based on direction
+  domain: automation
+  input:
+    remote_topic:
+      name: Zigbee2MQTT topic
+      selector:
+        text:
+
+    primary_lights:
+      name: Primary light(s)
+      selector:
+        target:
+          entity:
+            domain: light
+
+    secondary_lights:
+      name: Secondary light(s)
+      default: {}
+      selector:
+        target:
+          entity:
+            domain: light
+
+    dim_step:
+      name: Dimming step (%)
+      default: 10
+      selector:
+        number:
+          min: 1
+          max: 50
+          unit_of_measurement: "%"
+
+trigger:
+  - platform: mqtt
+    topic: !input remote_topic
+
+action:
+  - variables:
+      action: "{{ trigger.payload_json.action | default('') }}"
+      level: "{{ trigger.payload_json.action_level | default(None) }}"
+
+  - choose:
+      # ─────────────────────────────
+      # Single click → toggle primary
+      # ─────────────────────────────
+      - conditions:
+          - condition: template
+            value_template: "{{ action in ['on', 'off'] }}"
+        sequence:
+          - service: light.toggle
+            target: !input primary_lights
+
+      # ─────────────────────────────
+      # Double click → toggle secondary
+      # ─────────────────────────────
+      - conditions:
+          - condition: template
+            value_template: "{{ action == 'on_double' }}"
+        sequence:
+          - service: light.toggle
+            target: !input secondary_lights
+
+      # ─────────────────────────────
+      # Wheel → brighten (right)
+      # ─────────────────────────────
+      - conditions:
+          - condition: template
+            value_template: >
+              {{ action == 'brightness_move_to_level' and level == 255 }}
+        sequence:
+          - service: light.turn_on
+            target: !input primary_lights
+            data:
+              brightness_step_pct: !input dim_step
+
+      # ─────────────────────────────
+      # Wheel → dim (left)
+      # ─────────────────────────────
+      - conditions:
+          - condition: template
+            value_template: >
+              {{ action == 'brightness_move_to_level' and level == 1 }}
+        sequence:
+          - service: light.turn_on
+            target: !input primary_lights
+            data:
+              brightness_step_pct: "{{ -1 * dim_step }}"
+
+mode: restart
