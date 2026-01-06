@@ -1,19 +1,22 @@
 blueprint:
-  name: Zigbee2MQTT – IKEA BILRESA Remote
+  name: Zigbee2MQTT – IKEA BILRESA Remote (Directional Dimmer)
   description: >
-    Control lights using IKEA BILRESA via Zigbee2MQTT.
+    Control light groups with an IKEA BILRESA remote via Zigbee2MQTT.
     - Single click toggles primary lights
     - Double click toggles secondary lights
-    - Rotary wheel dims or brightens based on direction
+    - Rotary wheel dims or brightens based on rotation direction
   domain: automation
+
   input:
     remote_topic:
       name: Zigbee2MQTT topic
+      description: Example: zigbee2mqtt/bilreasa_salon
       selector:
         text:
 
     primary_lights:
       name: Primary light(s)
+      description: Controlled by single click and rotary wheel
       selector:
         target:
           entity:
@@ -21,14 +24,23 @@ blueprint:
 
     secondary_lights:
       name: Secondary light(s)
+      description: Controlled by double click
       default: {}
       selector:
         target:
           entity:
             domain: light
 
+    wheel_memory:
+      name: Wheel memory helper
+      description: Input number storing last wheel level
+      selector:
+        entity:
+          domain: input_number
+
     dim_step:
       name: Dimming step (%)
+      description: Brightness change per wheel movement
       default: 10
       selector:
         number:
@@ -43,9 +55,11 @@ trigger:
 action:
   - variables:
       action: "{{ trigger.payload_json.action | default('') }}"
-      level: "{{ trigger.payload_json.action_level | default(None) }}"
+      new_level: "{{ trigger.payload_json.action_level | default(None) }}"
+      last_level: "{{ states(!input wheel_memory) | int(0) }}"
 
   - choose:
+
       # ─────────────────────────────
       # Single click → toggle primary
       # ─────────────────────────────
@@ -67,29 +81,40 @@ action:
             target: !input secondary_lights
 
       # ─────────────────────────────
-      # Wheel → brighten (right)
+      # Rotary wheel → direction-aware dimming
       # ─────────────────────────────
       - conditions:
           - condition: template
             value_template: >
-              {{ action == 'brightness_move_to_level' and level == 255 }}
+              {{ action == 'brightness_move_to_level'
+                 and new_level is not none }}
         sequence:
-          - service: light.turn_on
-            target: !input primary_lights
-            data:
-              brightness_step_pct: !input dim_step
+          - variables:
+              step: >
+                {% if last_level == 0 %}
+                  0
+                {% elif new_level > last_level %}
+                  {{ dim_step }}
+                {% elif new_level < last_level %}
+                  {{ -dim_step }}
+                {% else %}
+                  0
+                {% endif %}
 
-      # ─────────────────────────────
-      # Wheel → dim (left)
-      # ─────────────────────────────
-      - conditions:
-          - condition: template
-            value_template: >
-              {{ action == 'brightness_move_to_level' and level == 1 }}
-        sequence:
-          - service: light.turn_on
-            target: !input primary_lights
+          - choose:
+              - conditions:
+                  - condition: template
+                    value_template: "{{ step != 0 }}"
+                sequence:
+                  - service: light.turn_on
+                    target: !input primary_lights
+                    data:
+                      brightness_step_pct: "{{ step }}"
+
+          - service: input_number.set_value
+            target:
+              entity_id: !input wheel_memory
             data:
-              brightness_step_pct: "{{ -1 * dim_step }}"
+              value: "{{ new_level }}"
 
 mode: restart
