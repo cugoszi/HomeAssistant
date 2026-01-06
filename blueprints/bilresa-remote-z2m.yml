@@ -115,7 +115,7 @@ action:
                   - service: light.turn_on
                     target: !input dimmer_lights
                     data:
-                      brightness_step_pct: "{{ step | int }}"
+                      brightness_step_pct: "{{ step | int(0) }}"
 
           # Update wheel memory only if value is numeric
           - choose:
@@ -127,6 +127,6 @@ action:
                     target:
                       entity_id: !input wheel_memory
                     data:
-                      value: "{{ new_level | int }}"
+                      value: "{{ new_level | int(0) }}"
 
 mode: restart
