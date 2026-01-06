@@ -6,11 +6,10 @@ blueprint:
     - Double click toggles secondary lights
     - Rotary wheel dims or brightens based on rotation direction
   domain: automation
-
   input:
     remote_topic:
       name: Zigbee2MQTT topic
-      description: Example: zigbee2mqtt/bilreasa_salon
+      description: "Example: zigbee2mqtt/bilreasa_salon"
       selector:
         text:
 
@@ -59,7 +58,6 @@ action:
       last_level: "{{ states(!input wheel_memory) | int(0) }}"
 
   - choose:
-
       # ─────────────────────────────
       # Single click → toggle primary
       # ─────────────────────────────
