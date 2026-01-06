@@ -91,18 +91,17 @@ action:
             value_template: "{{ action == 'brightness_move_to_level' }}"
         sequence:
           - variables:
-              # Convert last_level safely
-              last: "{{ states(wheel_memory_entity) | int(0) }}"
-              # Determine step according to new_level
+              last: "{{ states(!input wheel_memory) | int(0) }}"
               step: >
+                {% set d = !input dim_step | int %}
                 {% if new_level is none %}
-                  {{ dim_step }}
+                  {{ d }}
                 {% elif new_level == 1 %}
-                  {{ -dim_step }}
+                  {{ -d }}
                 {% elif new_level > last %}
-                  {{ dim_step }}
+                  {{ d }}
                 {% elif new_level < last %}
-                  {{ -dim_step }}
+                  {{ -d }}
                 {% else %}
                   0
                 {% endif %}
@@ -110,14 +109,13 @@ action:
           - choose:
               - conditions:
                   - condition: template
-                    value_template: "{{ step != 0 }}"
+                    value_template: "{{ step | int(0) != 0 }}"
                 sequence:
                   - service: light.turn_on
                     target: !input dimmer_lights
                     data:
                       brightness_step_pct: "{{ step | int(0) }}"
 
-          # Update wheel memory only if value is numeric
           - choose:
               - conditions:
                   - condition: template
