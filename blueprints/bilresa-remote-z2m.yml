@@ -112,7 +112,7 @@ action:
                   - service: light.turn_on
                     target: !input dimmer_lights
                     data:
-                      brightness_step_pct: "{{ step }}"
+                      brightness_step_pct: "{{ step | int }}"
 
           - service: input_number.set_value
             target:
