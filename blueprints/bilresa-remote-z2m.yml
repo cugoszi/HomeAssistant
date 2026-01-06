@@ -88,19 +88,21 @@ action:
       # Rotary wheel → direction-aware dimming
       - conditions:
           - condition: template
-            value_template: >
-              {{ action == 'brightness_move_to_level' and new_level is not none }}
+            value_template: "{{ action == 'brightness_move_to_level' }}"
         sequence:
           - variables:
+              # Convert last_level safely
+              last: "{{ states(wheel_memory_entity) | int(0) }}"
+              # Determine step according to new_level
               step: >
-                {% set l = last_level | int(0) %}
-                {% set n = new_level | int(0) %}
-                {% if l == 0 %}
-                  0
-                {% elif n > l %}
-                  {{ dim_step | int }}
-                {% elif n < l %}
-                  {{ -dim_step | int }}
+                {% if new_level is none %}
+                  {{ dim_step }}           # null → brighten
+                {% elif new_level == 1 %}
+                  {{ -dim_step }}          # min → dim
+                {% elif new_level > last %}
+                  {{ dim_step }}           # higher than last → brighten
+                {% elif new_level < last %}
+                  {{ -dim_step }}          # lower than last → dim
                 {% else %}
                   0
                 {% endif %}
@@ -115,10 +117,16 @@ action:
                     data:
                       brightness_step_pct: "{{ step | int }}"
 
-          - service: input_number.set_value
-            target:
-              entity_id: !input wheel_memory
-            data:
-              value: "{{ new_level | int }}"
+          # Update wheel memory only if value is numeric
+          - choose:
+              - conditions:
+                  - condition: template
+                    value_template: "{{ new_level is not none }}"
+                sequence:
+                  - service: input_number.set_value
+                    target:
+                      entity_id: !input wheel_memory
+                    data:
+                      value: "{{ new_level | int }}"
 
 mode: restart
